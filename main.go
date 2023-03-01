@@ -22,6 +22,8 @@ var (
 	iFile       string
 )
 
+const scriptVersion = "v0.1.0"
+
 func init() {
 	flag.StringVar(&config, "config", "", "")
 	flag.StringVar(&environment, "env", "", "")
@@ -36,12 +38,23 @@ func setClient() {
 	var err error
 	aspace, err = go_aspace.NewClient(config, environment, 20)
 	if err != nil {
-		panic(err)
+		log.Printf("[ERROR] %s", err.Error())
+		os.Exit(1)
 	}
+
+	log.Printf("[INFO] client created for %s", aspace.RootURL)
 }
 
 func main() {
 	flag.Parse()
+	logFile, err := os.Create("remove-aeon-links")
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
+	log.Printf("[INFO] running `remove-aeon-links`", scriptVersion)
 	setClient()
 
 	inFile, err := os.Open(iFile)
@@ -52,15 +65,16 @@ func main() {
 
 	scanner := bufio.NewScanner(inFile)
 	for scanner.Scan() {
+		log.Printf("[INFO] checking %s for aeon links", scanner.Text())
 		repoId, aoID, err := go_aspace.URISplit(scanner.Text())
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Printf("[ERROR] %s", err.Error())
 			continue
 		}
 
 		ao, err := aspace.GetArchivalObject(repoId, aoID)
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Printf("[ERROR] %s", err.Error())
 			continue
 		}
 
