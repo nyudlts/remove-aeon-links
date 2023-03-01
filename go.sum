@@ -2,6 +2,8 @@ github.com/lestrrat-go/libxml2 v0.0.0-20201123224832-e6d9de61b80d h1:7uUkdtm6TC3
 github.com/lestrrat-go/libxml2 v0.0.0-20201123224832-e6d9de61b80d/go.mod h1:fy/ZVbgyB83mtricxwSW3zqIRXWOVpKG2PvdUDFeC58=
 github.com/nyudlts/go-aspace v0.3.8-0.20221212180752-3a41d26e4f7c h1:iyT3MXpuHH4GIRtjNolY+a3JyUzzcJiondfjpjp+kjA=
 github.com/nyudlts/go-aspace v0.3.8-0.20221212180752-3a41d26e4f7c/go.mod h1:aYyLQ0wbIi8fE0iSA3RK8l8SSwY+C2qqF34XFeoJsfA=
+github.com/nyudlts/go-aspace v0.3.8-0.20230301161923-3b33cf4cb347 h1:9Nl+xv1sJG09WG7w3EBPQYn05mQODvco1t7SPW/va3E=
+github.com/nyudlts/go-aspace v0.3.8-0.20230301161923-3b33cf4cb347/go.mod h1:pySFxRCHMHbE2uAfYbBDAUs3enTRuGnLv+Jw7gZnKNI=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
