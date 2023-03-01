@@ -45,7 +45,7 @@ func setClient() {
 
 func main() {
 	flag.Parse()
-	logFile, err := os.Create("remove-aeon-links")
+	logFile, err := os.Create("remove-aeon-links.log")
 	if err != nil {
 		panic(err)
 	}
