@@ -18,7 +18,7 @@ var (
 	repository  int
 	resource    int
 	test        bool
-	aeonPtn     = regexp.MustCompile("https://aeon.library.nyu.edu")
+	aeonPtn     = regexp.MustCompile("^https://aeon.library.nyu.edu")
 	iFile       string
 )
 
