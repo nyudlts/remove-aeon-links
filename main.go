@@ -28,8 +28,6 @@ func init() {
 	flag.StringVar(&config, "config", "", "")
 	flag.StringVar(&environment, "env", "", "")
 	flag.StringVar(&iFile, "file", "", "")
-	flag.IntVar(&repository, "repo", 0, "")
-	flag.IntVar(&resource, "res", 0, "")
 	flag.BoolVar(&test, "test", false, "")
 }
 
@@ -54,7 +52,7 @@ func main() {
 	defer logFile.Close()
 	log.SetOutput(logFile)
 
-	log.Printf("[INFO] running `remove-aeon-links`", scriptVersion)
+	log.Printf("[INFO] running `remove-aeon-links` %s", scriptVersion)
 	setClient()
 
 	inFile, err := os.Open(iFile)
@@ -81,19 +79,19 @@ func main() {
 		for _, instance := range ao.Instances {
 			if instance.InstanceType == "digital_object" {
 				for _, doURI := range instance.DigitalObject {
-					res, err := hasAeonLinks(doURI)
+					res, uri, err := hasAeonLinks(doURI)
 					if err != nil {
-						fmt.Println(err.Error())
+						log.Printf("[ERROR] %s", err.Error())
 						continue
 					}
 					if res {
-						log.Println("[INFO] deleting " + doURI)
+						log.Printf("[INFO] deleting %s file-uri: %s", doURI, *uri)
 						msg, err := deleteDO(doURI)
 						if err != nil {
-							log.Println(fmt.Sprintf("[ERROR] %s", err.Error()))
+							log.Printf(fmt.Sprintf("[ERROR] %s", err.Error()))
 							continue
 						}
-						log.Println(fmt.Sprintf("[INFO] %s", *msg))
+						log.Printf(fmt.Sprintf("[INFO] %s", *msg))
 
 					}
 				}
@@ -124,20 +122,21 @@ func deleteDO(doURI string) (*string, error) {
 }
 
 // check that a digital object only has 1 fileversion and that it contains an aeon link
-func hasAeonLinks(doURI string) (bool, error) {
+func hasAeonLinks(doURI string) (bool, *string, error) {
 	repoID, doID, err := go_aspace.URISplit(doURI)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
 	do, err := aspace.GetDigitalObject(repoID, doID)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
-	if len(do.FileVersions) == 1 && aeonPtn.MatchString(do.FileVersions[0].FileURI) {
-		return true, nil
+	uri := do.FileVersions[0].FileURI
+	if len(do.FileVersions) == 1 && aeonPtn.MatchString(uri) {
+		return true, &uri, nil
 	}
 
-	return false, nil
+	return false, nil, nil
 }
