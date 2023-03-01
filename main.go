@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"flag"
+	"fmt"
 	go_aspace "github.com/nyudlts/go-aspace"
 	"log"
+	"os"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -14,57 +18,98 @@ var (
 	repository  int
 	resource    int
 	test        bool
-	aeonPtn     = regexp.MustCompile("aeon.library.nyu.edu")
+	aeonPtn     = regexp.MustCompile("https://aeon.library.nyu.edu")
+	iFile       string
 )
 
 func init() {
 	flag.StringVar(&config, "config", "", "")
 	flag.StringVar(&environment, "env", "", "")
+	flag.StringVar(&iFile, "file", "", "")
 	flag.IntVar(&repository, "repo", 0, "")
 	flag.IntVar(&resource, "res", 0, "")
 	flag.BoolVar(&test, "test", false, "")
 }
 
-func main() {
-	flag.Parse()
-
+func setClient() {
 	//create an ASClient
 	var err error
 	aspace, err = go_aspace.NewClient(config, environment, 20)
 	if err != nil {
 		panic(err)
 	}
+}
 
-	//get the digital objects attached to a resource
-	doURIs, err := aspace.GetDigitalObjectIDsForResource(repository, resource)
+func main() {
+	flag.Parse()
+	setClient()
+
+	inFile, err := os.Open(iFile)
 	if err != nil {
 		panic(err)
 	}
+	defer inFile.Close()
 
-	for i := range doURIs {
-		result, err := hasAeonLinks(doURIs[i])
+	scanner := bufio.NewScanner(inFile)
+	for scanner.Scan() {
+		repoId, aoID, err := go_aspace.URISplit(scanner.Text())
 		if err != nil {
-			//log the error
+			fmt.Println(err.Error())
 			continue
 		}
 
-		if result == false {
-			//skip the do
-			continue
-		}
-
-		err = removeAeonLink(doURIs[i])
+		ao, err := aspace.GetArchivalObject(repoId, aoID)
 		if err != nil {
-			log.Println(err.Error())
+			fmt.Println(err.Error())
 			continue
 		}
+
+		for _, instance := range ao.Instances {
+			if instance.InstanceType == "digital_object" {
+				for _, doURI := range instance.DigitalObject {
+					res, err := hasAeonLinks(doURI)
+					if err != nil {
+						fmt.Println(err.Error())
+						continue
+					}
+					if res {
+						log.Println("[INFO] deleting " + doURI)
+						msg, err := deleteDO(doURI)
+						if err != nil {
+							log.Println(fmt.Sprintf("[ERROR] %s", err.Error()))
+							continue
+						}
+						log.Println(fmt.Sprintf("[INFO] %s", *msg))
+
+					}
+				}
+			}
+		}
+
 	}
 }
 
-func removeAeonLink(string) error {
-	return nil
+func deleteDO(doURI string) (*string, error) {
+	repoID, doID, err := go_aspace.URISplit(doURI)
+	if err != nil {
+		return nil, err
+	}
+
+	if test != true {
+		msg, err := aspace.DeleteDigitalObject(repoID, doID)
+		if err != nil {
+			return nil, err
+		}
+		msg = strings.ReplaceAll(msg, "\n", "")
+		return &msg, nil
+	} else {
+		msg := "test-mode skipping deletion of " + doURI
+		return &msg, nil
+	}
+
 }
 
+// check that a digital object only has 1 fileversion and that it contains an aeon link
 func hasAeonLinks(doURI string) (bool, error) {
 	repoID, doID, err := go_aspace.URISplit(doURI)
 	if err != nil {
