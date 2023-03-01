@@ -22,7 +22,7 @@ var (
 	iFile       string
 )
 
-const scriptVersion = "v0.1.0"
+const scriptVersion = "v1.0.0"
 
 func init() {
 	flag.StringVar(&config, "config", "", "")
