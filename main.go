@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	go_aspace "github.com/nyudlts/go-aspace"
+	"log"
 	"regexp"
 )
 
@@ -52,7 +53,11 @@ func main() {
 			continue
 		}
 
-		err := removeAeonLink(doURIs[i])
+		err = removeAeonLink(doURIs[i])
+		if err != nil {
+			log.Println(err.Error())
+			continue
+		}
 	}
 }
 
