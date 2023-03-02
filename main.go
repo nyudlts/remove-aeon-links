@@ -134,7 +134,7 @@ func main() {
 					log.Printf("[ERROR] %s", err.Error())
 					continue
 				}
-				log.Println("[INFO] %s", *msg)
+				log.Printf("[INFO] %s", *msg)
 
 			}
 		}
