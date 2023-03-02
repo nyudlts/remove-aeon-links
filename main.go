@@ -22,7 +22,7 @@ var (
 	iFile       string
 )
 
-const scriptVersion = "v1.1.0"
+const scriptVersion = "v1.0.0"
 
 func init() {
 	flag.StringVar(&config, "config", "", "")
@@ -79,12 +79,14 @@ func main() {
 		removeInstances := []int{}
 		removeDOs := []string{}
 
+		//iterate through the instances
 		for i, instance := range ao.Instances {
-			//check the digital object
+			//check if the instance is a digital object
 			if instance.InstanceType == "digital_object" {
-
+				//iterate through the digital object map
 				for _, doURI := range instance.DigitalObject {
-					res, _, err := hasAeonLinks(doURI)
+					//check for aeon link objects
+					res, err := hasAeonLinks(doURI)
 					if err != nil {
 						log.Printf("[ERROR] %s", err.Error())
 						continue
@@ -168,11 +170,17 @@ func deleteDO(doURI string) (*string, error) {
 	}
 
 	if test != true {
+		do, err := aspace.GetDigitalObject(repoID, doID)
+		if err != nil {
+			return nil, err
+		}
+
 		msg, err := aspace.DeleteDigitalObject(repoID, doID)
 		if err != nil {
 			return nil, err
 		}
 		msg = strings.ReplaceAll(msg, "\n", "")
+		msg = fmt.Sprintf("%s {\"file-uri\"=\"%s\",\"title\"=\"%s\"}", msg, do.FileVersions[0].FileURI, do.Title)
 		return &msg, nil
 	} else {
 		msg := "test-mode, skipping deletion of " + doURI
@@ -182,21 +190,21 @@ func deleteDO(doURI string) (*string, error) {
 }
 
 // check that a digital object only has 1 fileversion and that it contains an aeon link
-func hasAeonLinks(doURI string) (bool, *string, error) {
+func hasAeonLinks(doURI string) (bool, error) {
 	repoID, doID, err := go_aspace.URISplit(doURI)
 	if err != nil {
-		return false, nil, err
+		return false, err
 	}
 
 	do, err := aspace.GetDigitalObject(repoID, doID)
 	if err != nil {
-		return false, nil, err
+		return false, err
 	}
 
 	uri := do.FileVersions[0].FileURI
 	if len(do.FileVersions) == 1 && aeonPtn.MatchString(uri) {
-		return true, &uri, nil
+		return true, nil
 	}
 
-	return false, nil, nil
+	return false, nil
 }
