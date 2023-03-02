@@ -22,7 +22,7 @@ var (
 	iFile       string
 )
 
-const scriptVersion = "v1.0.0"
+const scriptVersion = "v1.1.0"
 
 func init() {
 	flag.StringVar(&config, "config", "", "")
@@ -76,29 +76,89 @@ func main() {
 			continue
 		}
 
-		for _, instance := range ao.Instances {
+		removeInstances := []int{}
+		removeDOs := []string{}
+
+		for i, instance := range ao.Instances {
+			//check the digital object
 			if instance.InstanceType == "digital_object" {
+
 				for _, doURI := range instance.DigitalObject {
-					res, uri, err := hasAeonLinks(doURI)
+					res, _, err := hasAeonLinks(doURI)
 					if err != nil {
 						log.Printf("[ERROR] %s", err.Error())
 						continue
 					}
 					if res {
-						log.Printf("[INFO] deleting %s file-uri: %s", doURI, *uri)
-						msg, err := deleteDO(doURI)
-						if err != nil {
-							log.Printf(fmt.Sprintf("[ERROR] %s", err.Error()))
-							continue
-						}
-						log.Printf(fmt.Sprintf("[INFO] %s", *msg))
-
+						removeInstances = append(removeInstances, i)
+						removeDOs = append(removeDOs, doURI)
 					}
 				}
 			}
 		}
 
+		if len(removeInstances) > 0 {
+			for _, ii := range removeInstances {
+				do := ao.Instances[ii].DigitalObject
+				log.Printf("[INFO] unlinking of do %s from ao %s", do["ref"], ao.URI)
+
+				if test == true {
+					log.Printf("[INFO] test-mode -- skipping unlinking of do %s from ao %s", do["ref"], ao.URI)
+					continue
+				}
+
+				msg, err := unlinkDO(repoId, aoID, ao, ii)
+				if err != nil {
+					log.Printf(fmt.Sprintf("[ERROR] %s", err.Error()))
+					continue
+				}
+				log.Printf(fmt.Sprintf("[INFO] %s", msg))
+			}
+		}
+
+		if len(removeDOs) > 0 {
+			for _, doURI := range removeDOs {
+				log.Printf("[INFO] deleting %s", doURI)
+				if err != nil {
+					log.Printf("[ERROR] %s", err.Error())
+					continue
+				}
+
+				if test == true {
+					log.Printf("[INFO] test-mode -- skipping delete of %s\n", doURI)
+					continue
+				}
+
+				msg, err := deleteDO(doURI)
+				if err != nil {
+					log.Printf("[ERROR] %s", err.Error())
+					continue
+				}
+				log.Println("[INFO] %s", *msg)
+
+			}
+		}
+
 	}
+}
+
+func unlinkDO(repoID int, aoID int, ao go_aspace.ArchivalObject, ii int) (string, error) {
+	//remove the instance from instance slice
+	oLength := len(ao.Instances)
+	ao.Instances = append(ao.Instances[:ii], ao.Instances[ii+1:]...)
+	nLength := len(ao.Instances)
+
+	//check that the instance was removed
+	if nLength != oLength-1 {
+		return "", fmt.Errorf("%d is not equal to %d -1", nLength, oLength)
+	}
+
+	msg, err := aspace.UpdateArchivalObject(repoID, aoID, ao)
+	if err != nil {
+		return "", err
+	}
+
+	return msg, nil
 }
 
 func deleteDO(doURI string) (*string, error) {
@@ -115,7 +175,7 @@ func deleteDO(doURI string) (*string, error) {
 		msg = strings.ReplaceAll(msg, "\n", "")
 		return &msg, nil
 	} else {
-		msg := "test-mode skipping deletion of " + doURI
+		msg := "test-mode, skipping deletion of " + doURI
 		return &msg, nil
 	}
 
