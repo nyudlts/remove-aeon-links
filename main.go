@@ -7,20 +7,25 @@ import (
 	go_aspace "github.com/nyudlts/go-aspace"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
 
 var (
-	aspace      *go_aspace.ASClient
-	config      string
-	environment string
-	repository  int
-	resource    int
-	test        bool
-	aeonPtn     = regexp.MustCompile("^https://aeon.library.nyu.edu")
-	iFile       string
+	aspace          *go_aspace.ASClient
+	config          string
+	environment     string
+	test            bool
+	aeonPtn         = regexp.MustCompile("^https://aeon.library.nyu.edu")
+	iFile           string
+	dosRemovedCount int
 )
+
+type DORef struct {
+	URI   string
+	Index int
+}
 
 const scriptVersion = "v1.0.0"
 
@@ -41,6 +46,7 @@ func setClient() {
 	}
 
 	log.Printf("[INFO] client created for %s", aspace.RootURL)
+	fmt.Printf("[INFO] client created for %s\n", aspace.RootURL)
 }
 
 func main() {
@@ -53,6 +59,8 @@ func main() {
 	log.SetOutput(logFile)
 
 	log.Printf("[INFO] running `remove-aeon-links` %s", scriptVersion)
+	fmt.Printf("[INFO] running `remove-aeon-links` %s\n", scriptVersion)
+
 	setClient()
 
 	inFile, err := os.Open(iFile)
@@ -60,10 +68,20 @@ func main() {
 		panic(err)
 	}
 	defer inFile.Close()
+	absFilepath, _ := filepath.Abs(iFile)
+	log.Printf("[INFO] using source file `%s`", absFilepath)
+	fmt.Printf("[INFO] using source file `%s`\n", absFilepath)
 
+	if test {
+		log.Printf("[INFO] running in test mode, no dos will be unlinked or deleted")
+		fmt.Printf("[INFO] running in test mode, no dos will be unlinked or deleted\n", absFilepath)
+	}
+
+	dosRemovedCount = 0
 	scanner := bufio.NewScanner(inFile)
 	for scanner.Scan() {
 		log.Printf("[INFO] checking %s for aeon links", scanner.Text())
+		fmt.Printf("[INFO] checking %s for aeon links\n", scanner.Text())
 		repoId, aoID, err := go_aspace.URISplit(scanner.Text())
 		if err != nil {
 			log.Printf("[ERROR] %s", err.Error())
@@ -76,8 +94,7 @@ func main() {
 			continue
 		}
 
-		removeInstances := []int{}
-		removeDOs := []string{}
+		DORefs := []DORef{}
 
 		//iterate through the instances
 		for i, instance := range ao.Instances {
@@ -92,56 +109,52 @@ func main() {
 						continue
 					}
 					if res {
-						removeInstances = append(removeInstances, i)
-						removeDOs = append(removeDOs, doURI)
+						DORefs = append(DORefs, DORef{URI: doURI, Index: i})
 					}
 				}
 			}
 		}
 
-		if len(removeInstances) > 0 {
-			for _, ii := range removeInstances {
-				do := ao.Instances[ii].DigitalObject
-				log.Printf("[INFO] unlinking of do %s from ao %s", do["ref"], ao.URI)
+		//if there are no DOs to remove, continue to next ao
+		if len(DORefs) < 1 {
+			log.Printf("[INFO] no Aeon Links found in %s", scanner.Text())
+			continue
+		}
 
-				if test == true {
-					log.Printf("[INFO] test-mode -- skipping unlinking of do %s from ao %s", do["ref"], ao.URI)
-					continue
-				}
-
-				msg, err := unlinkDO(repoId, aoID, ao, ii)
+		for _, doRef := range DORefs {
+			//unlink the DO from the AO
+			log.Printf("[INFO] unlinking of do %s from ao %s", doRef.URI, ao.URI)
+			if test == true {
+				log.Printf("[INFO] test-mode -- skipping unlinking of do %s from ao %s", doRef.URI, ao.URI)
+			} else {
+				msg, err := unlinkDO(repoId, aoID, ao, doRef.Index)
 				if err != nil {
 					log.Printf(fmt.Sprintf("[ERROR] %s", err.Error()))
 					continue
 				}
 				log.Printf(fmt.Sprintf("[INFO] %s", msg))
 			}
-		}
 
-		if len(removeDOs) > 0 {
-			for _, doURI := range removeDOs {
-				log.Printf("[INFO] deleting %s", doURI)
-				if err != nil {
-					log.Printf("[ERROR] %s", err.Error())
-					continue
-				}
-
-				if test == true {
-					log.Printf("[INFO] test-mode -- skipping delete of %s\n", doURI)
-					continue
-				}
-
-				msg, err := deleteDO(doURI)
+			//delete the DO
+			log.Printf("[INFO] deleting %s", doRef.URI)
+			if test == true {
+				log.Printf("[INFO] test-mode -- skipping delete of %s\n", doRef.URI)
+				continue
+			} else {
+				msg, err := deleteDO(doRef.URI)
 				if err != nil {
 					log.Printf("[ERROR] %s", err.Error())
 					continue
 				}
 				log.Printf("[INFO] %s", *msg)
-
 			}
+
+			dosRemovedCount = dosRemovedCount + 1
 		}
 
 	}
+	log.Printf("[INFO] remove-aeon-links complete, %d digital objects unlinked and removed", dosRemovedCount)
+	fmt.Printf("[INFO] remove-aeon-links complete, %d digital objects unlinked and removed\n", dosRemovedCount)
 }
 
 func unlinkDO(repoID int, aoID int, ao go_aspace.ArchivalObject, ii int) (string, error) {
