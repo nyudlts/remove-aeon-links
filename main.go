@@ -74,7 +74,7 @@ func main() {
 
 	if test {
 		log.Printf("[INFO] running in test mode, no dos will be unlinked or deleted")
-		fmt.Printf("[INFO] running in test mode, no dos will be unlinked or deleted\n", absFilepath)
+		fmt.Printf("[INFO] running in test mode, no dos will be unlinked or deleted\n")
 	}
 
 	dosRemovedCount = 0
